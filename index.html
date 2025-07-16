@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Geoportal de Susceptibilidad a Deslizamientos - Ciudad Victoria</title>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"/>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Inter', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        overflow: hidden;
+    }
+
+    /* Header científico */
+    .header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        z-index: 2000;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .logo {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 18px;
+    }
+
+    .title-section h1 {
+        color: #f8fafc;
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 2px;
+        letter-spacing: -0.025em;
+    }
+
+    .title-section p {
+        color: #94a3b8;
+        font-size: 12px;
+        font-weight: 400;
+    }
+
+    .header-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #94a3b8;
+        font-size: 12px;
+    }
+
+    .status-indicator {
+        width: 8px;
+        height: 8px;
+        background: #10b981;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    #map { 
+        height: 100vh; 
+        padding-top: 70px;
+    }
+
+    /* Panel lateral científico */
+    .panel {
+        position: fixed;
+        top: 85px;
+        left: 20px;
+        width: 320px;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 12px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        z-index: 1000;
+        max-height: calc(100vh - 105px);
+        overflow-y: auto;
+        color: #f8fafc;
+    }
+
+    .panel-header {
+        padding: 20px 20px 15px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(30, 41, 59, 0.5);
+        border-radius: 12px 12px 0 0;
+    }
+
+    .panel-header h3 {
+        font-size: 14px;
+        font-weight: 600;
+        color: #f8fafc;
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .panel-header p {
+        font-size: 12px;
+        color: #94a3b8;
+        line-height: 1.5;
+    }
+
+    .panel-content {
+        padding: 15px 20px;
+    }
+
+    .layer-group {
+        margin-bottom: 25px;
+    }
+
+    .layer-group-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #3b82f6;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .layer-item {
+        margin-bottom: 8px;
+        background: rgba(30, 41, 59, 0.3);
+        border: 1px solid rgba(148, 163, 184, 0.1);
+        border-radius: 8px;
+        padding: 12px;
+        transition: all 0.3s ease;
+    }
+
+    .layer-item:hover {
+        background: rgba(30, 41, 59, 0.5);
+        border-color: rgba(59, 130, 246, 0.3);
+        transform: translateY(-1px);
+    }
+
+    .layer-item label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #e2e8f0;
+        cursor: pointer;
+        line-height: 1.4;
+    }
+
+    .layer-item input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: #3b82f6;
+        cursor: pointer;
+    }
+
+    .legend {
+        margin-top: 12px;
+        display: none;
+        background: rgba(15, 23, 42, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.1);
+        border-radius: 6px;
+        padding: 10px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 6px;
+        font-size: 11px;
+        color: #cbd5e1;
+    }
+
+    .legend-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .color-box {
+        width: 14px;
+        height: 14px;
+        margin-right: 8px;
+        border-radius: 2px;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        flex-shrink: 0;
+    }
+
+    /* Scrollbar personalizada */
+    .panel::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .panel::-webkit-scrollbar-track {
+        background: rgba(30, 41, 59, 0.3);
+        border-radius: 3px;
+    }
+
+    .panel::-webkit-scrollbar-thumb {
+        background: rgba(59, 130, 246, 0.5);
+        border-radius: 3px;
+    }
+
+    .panel::-webkit-scrollbar-thumb:hover {
+        background: rgba(59, 130, 246, 0.7);
+    }
+
+    /* Controles de mapa personalizados */
+    .leaflet-control-layers {
+        background: rgba(15, 23, 42, 0.95) !important;
+        border: 1px solid rgba(148, 163, 184, 0.2) !important;
+        border-radius: 8px !important;
+        box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .leaflet-control-layers-expanded {
+        padding: 10px 15px !important;
+        color: #f8fafc !important;
+    }
+
+    .leaflet-control-layers label {
+        color: #e2e8f0 !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+    }
+
+    /* Popup personalizado */
+    .leaflet-popup-content-wrapper {
+        background: rgba(15, 23, 42, 0.95) !important;
+        border: 1px solid rgba(148, 163, 184, 0.2) !important;
+        border-radius: 8px !important;
+        box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1) !important;
+        backdrop-filter: blur(10px) !important;
+    }
+
+    .leaflet-popup-content {
+        color: #f8fafc !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        line-height: 1.5 !important;
+    }
+
+    .leaflet-popup-tip {
+        background: rgba(15, 23, 42, 0.95) !important;
+        border: 1px solid rgba(148, 163, 184, 0.2) !important;
+    }
+
+    /* Animaciones */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .panel, .header {
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .header {
+            padding: 10px 15px;
+        }
+        
+        .title-section h1 {
+            font-size: 16px;
+        }
+        
+        .panel {
+            width: calc(100% - 30px);
+            left: 15px;
+            right: 15px;
+            top: 75px;
+        }
+    }
+</style>
+</head>
+<body>
+<div class="header">
+    <div class="header-left">
+        <div class="logo">
+            <i class="fas fa-mountain"></i>
+        </div>
+        <div class="title-section">
+            <h1>GEOPORTAL DE SUSCEPTIBILIDAD A DESLIZAMIENTOS</h1>
+            <p>Ciudad Victoria • Análisis Geoespacial Avanzado</p>
+        </div>
+    </div>
+    <div class="header-right">
+        <div class="status-indicator"></div>
+        <span>Sistema Activo</span>
+    </div>
+</div>
+
+<div id="map"></div>
+
+<div class="panel">
+    <div class="panel-header">
+        <h3><i class="fas fa-layer-group"></i> Capas de Análisis</h3>
+        <p>Selecciona las capas temáticas para visualizar los diferentes parámetros de análisis espacial</p>
+    </div>
+    <div class="panel-content">
+        <div class="layer-group">
+            <div class="layer-group-title">
+                <i class="fas fa-leaf"></i> Índices de Vegetación
+            </div>
+            <div class="layer-item">
+                <label><input data-layer="ndvi_2016_r1" type="checkbox"/> NDVI 2016</label>
+                <div class="legend" id="legend_ndvi_2016_r1">
+                    <div class="legend-item"><div class="color-box" style="background:#1c5904"></div>Vegetación extremadamente densa</div>
+                    <div class="legend-item"><div class="color-box" style="background:#48c219"></div>Vegetación muy densa</div>
+                    <div class="legend-item"><div class="color-box" style="background:#b2f76f"></div>Vegetación densa</div>
+                    <div class="legend-item"><div class="color-box" style="background:#a7b535"></div>Vegetación moderada</div>
+                    <div class="legend-item"><div class="color-box" style="background:#d9ce53"></div>Vegetación escasa o nula</div>
+                </div>
+            </div>
+            <div class="layer-item">
+                <label><input data-layer="ndvi_2020_r1" type="checkbox"/> NDVI 2020</label>
+                <div class="legend" id="legend_ndvi_2020_r1">
+                    <div class="legend-item"><div class="color-box" style="background:#1c5904"></div>Vegetación extremadamente densa</div>
+                    <div class="legend-item"><div class="color-box" style="background:#48c219"></div>Vegetación muy densa</div>
+                    <div class="legend-item"><div class="color-box" style="background:#b2f76f"></div>Vegetación densa</div>
+                    <div class="legend-item"><div class="color-box" style="background:#a7b535"></div>Vegetación moderada</div>
+                    <div class="legend-item"><div class="color-box" style="background:#d9ce53"></div>Vegetación escasa o nula</div>
+                </div>
+            </div>
+            <div class="layer-item">
+                <label><input data-layer="ndvi_2024_r1" type="checkbox"/> NDVI 2024</label>
+                <div class="legend" id="legend_ndvi_2024_r1">
+                    <div class="legend-item"><div class="color-box" style="background:#1c5904"></div>Vegetación extremadamente densa</div>
+                    <div class="legend-item"><div class="color-box" style="background:#48c219"></div>Vegetación muy densa</div>
+                    <div class="legend-item"><div class="color-box" style="background:#b2f76f"></div>Vegetación densa</div>
+                    <div class="legend-item"><div class="color-box" style="background:#a7b535"></div>Vegetación moderada</div>
+                    <div class="legend-item"><div class="color-box" style="background:#d9ce53"></div>Vegetación escasa o nula</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="layer-group">
+            <div class="layer-group-title">
+                <i class="fas fa-tint"></i> Índices de Humedad
+            </div>
+            <div class="layer-item">
+                <label><input data-layer="ndwi_2016_r1" type="checkbox"/> NDWI 2016</label>
+                <div class="legend" id="legend_ndwi_2016_r1">
+                    <div class="legend-item"><div class="color-box" style="background:#1500a1"></div>Alta humedad y buena retención hídrica</div>
+                    <div class="legend-item"><div class="color-box" style="background:#2576ff"></div>Moderada humedad</div>
+                    <div class="legend-item"><div class="color-box" style="background:#4ec8e9"></div>Humedad intermedia</div>
+                    <div class="legend-item"><div class="color-box" style="background:#e2db66"></div>Suelos ligeramente secos</div>
+                    <div class="legend-item"><div class="color-box" style="background:#ce8410"></div>Suelos secos o áreas urbanizadas</div>
+                </div>
+            </div>
+            <div class="layer-item">
+                <label><input data-layer="ndwi_2020_r1" type="checkbox"/> NDWI 2020</label>
+                <div class="legend" id="legend_ndwi_2020_r1">
+                    <div class="legend-item"><div class="color-box" style="background:#1500a1"></div>Alta humedad y buena retención hídrica</div>
+                    <div class="legend-item"><div class="color-box" style="background:#2576ff"></div>Moderada humedad</div>
+                    <div class="legend-item"><div class="color-box" style="background:#4ec8e9"></div>Humedad intermedia</div>
+                    <div class="legend-item"><div class="color-box" style="background:#e2db66"></div>Suelos ligeramente secos</div>
+                    <div class="legend-item"><div class="color-box" style="background:#ce8410"></div>Suelos secos o áreas urbanizadas</div>
+                </div>
+            </div>
+            <div class="layer-item">
+                <label><input data-layer="ndwi_2024_r1" type="checkbox"/> NDWI 2024</label>
+                <div class="legend" id="legend_ndwi_2024_r1">
+                    <div class="legend-item"><div class="color-box" style="background:#1500a1"></div>Alta humedad y buena retención hídrica</div>
+                    <div class="legend-item"><div class="color-box" style="background:#2576ff"></div>Moderada humedad</div>
+                    <div class="legend-item"><div class="color-box" style="background:#4ec8e9"></div>Humedad intermedia</div>
+                    <div class="legend-item"><div class="color-box" style="background:#e2db66"></div>Suelos ligeramente secos</div>
+                    <div class="legend-item"><div class="color-box" style="background:#ce8410"></div>Suelos secos o áreas urbanizadas</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="layer-group">
+            <div class="layer-group-title">
+                <i class="fas fa-chart-line"></i> Análisis Temporal
+            </div>
+            <div class="layer-item">
+                <label><input data-layer="cambio_ndvi" type="checkbox"/> VARIACIÓN NDVI 2016–2024</label>
+                <div class="legend" id="legend_cambio_ndvi">
+                    <div class="legend-item"><div class="color-box" style="background:#7b0001"></div>Fuerte pérdida de vegetación</div>
+                    <div class="legend-item"><div class="color-box" style="background:#fc8500"></div>Pérdida moderada</div>
+                    <div class="legend-item"><div class="color-box" style="background:#f7ea5c"></div>Sin cambio significativo</div>
+                    <div class="legend-item"><div class="color-box" style="background:#94f26c"></div>Ganancia moderada</div>
+                    <div class="legend-item"><div class="color-box" style="background:#015a00"></div>Fuerte ganancia de vegetación</div>
+                </div>
+            </div>
+            <div class="layer-item">
+                <label><input data-layer="cambio_ndwi" type="checkbox"/> VARIACIÓN NDWI 2016–2024</label>
+                <div class="legend" id="legend_cambio_ndwi">
+                    <div class="legend-item"><div class="color-box" style="background:#663300"></div>Fuerte pérdida de humedad</div>
+                    <div class="legend-item"><div class="color-box" style="background:#ffd700"></div>Pérdida moderada</div>
+                    <div class="legend-item"><div class="color-box" style="background:#c0c0c0"></div>Sin cambio</div>
+                    <div class="legend-item"><div class="color-box" style="background:#5ac8fa"></div>Aumento moderado de humedad</div>
+                    <div class="legend-item"><div class="color-box" style="background:#000084"></div>Fuerte aumento de humedad</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="layer-group">
+            <div class="layer-group-title">
+                <i class="fas fa-mountain"></i> Análisis Topográfico
+            </div>
+            <div class="layer-item">
+                <label><input data-layer="pendiente_mc_r10" type="checkbox"/> PENDIENTE</label>
+                <div class="legend" id="legend_pendiente_mc_r10">
+                    <div class="legend-item"><div class="color-box" style="background:#f6e891"></div>0° – 5°</div>
+                    <div class="legend-item"><div class="color-box" style="background:#d0b865"></div>&gt;5° – 15°</div>
+                    <div class="legend-item"><div class="color-box" style="background:#ffea4c"></div>&gt;15° – 30°</div>
+                    <div class="legend-item"><div class="color-box" style="background:#d66a17"></div>&gt;30° – 45°</div>
+                    <div class="legend-item"><div class="color-box" style="background:#c92311"></div>&gt;45°</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="layer-group">
+            <div class="layer-group-title">
+                <i class="fas fa-exclamation-triangle"></i> Susceptibilidad
+            </div>
+            <div class="layer-item">
+                <label><input data-layer="susceptibilidad_ciudad_victoria" type="checkbox"/> SUSCEPTIBILIDAD CIUDAD VICTORIA</label>
+                <div class="legend" id="legend_susceptibilidad_ciudad_victoria">
+                    <div class="legend-item"><div class="color-box" style="background:#a7e1a5"></div>Muy baja susceptibilidad</div>
+                    <div class="legend-item"><div class="color-box" style="background:#2bba69"></div>Baja susceptibilidad</div>
+                    <div class="legend-item"><div class="color-box" style="background:#fcf58e"></div>Moderada susceptibilidad</div>
+                </div>
+            </div>
+            <div class="layer-item">
+                <label><input data-layer="susceptibilidad_deslizamientos" type="checkbox"/> SUSCEPTIBILIDAD A DESLIZAMIENTOS</label>
+                <div class="legend" id="legend_susceptibilidad_deslizamientos">
+                    <div class="legend-item"><div class="color-box" style="background:#b8f5c0"></div>Muy baja susceptibilidad</div>
+                    <div class="legend-item"><div class="color-box" style="background:#92e787"></div>Baja susceptibilidad</div>
+                    <div class="legend-item"><div class="color-box" style="background:#fef78d"></div>Moderada susceptibilidad</div>
+                    <div class="legend-item"><div class="color-box" style="background:#fcac4d"></div>Alta susceptibilidad</div>
+                    <div class="legend-item"><div class="color-box" style="background:#e22e14"></div>Muy alta susceptibilidad</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// === Mapeo de nombres técnicos a títulos del panel ===
+const titulosCapas = {
+  "ndvi_2016_r1": "NDVI 2016",
+  "ndvi_2020_r1": "NDVI 2020",
+  "ndvi_2024_r1": "NDVI 2024",
+  "ndwi_2016_r1": "NDWI 2016",
+  "ndwi_2020_r1": "NDWI 2020",
+  "ndwi_2024_r1": "NDWI 2024",
+  "cambio_ndvi": "VARIACIÓN NDVI 2016–2024",
+  "cambio_ndwi": "VARIACIÓN NDWI 2016–2024",
+  "pendiente_mc_r10": "PENDIENTE",
+  "susceptibilidad_ciudad_victoria": "SUSCEPTIBILIDAD CIUDAD VICTORIA",
+  "susceptibilidad_deslizamientos": "SUSCEPTIBILIDAD A DESLIZAMIENTOS"
+};
+
+// === Diccionario de leyendas por capa ===
+const leyendas = {
+  "ndvi_2016_r1": {
+    1: "Vegetación extremadamente densa",
+    2: "Vegetación muy densa",
+    3: "Vegetación densa",
+    4: "Vegetación moderada",
+    5: "Vegetación escasa o nula"
+  },
+  "ndvi_2020_r1": {
+    1: "Vegetación extremadamente densa",
+    2: "Vegetación muy densa",
+    3: "Vegetación densa",
+    4: "Vegetación moderada",
+    5: "Vegetación escasa o nula"
+  },
+  "ndvi_2024_r1": {
+    1: "Vegetación extremadamente densa",
+    2: "Vegetación muy densa",
+    3: "Vegetación densa",
+    4: "Vegetación moderada",
+    5: "Vegetación escasa o nula"
+  },
+  "ndwi_2016_r1": {
+    1: "Alta humedad y buena retención hídrica",
+    2: "Moderada humedad",
+    3: "Humedad intermedia",
+    4: "Suelos ligeramente secos",
+    5: "Suelos secos o áreas urbanizadas"
+  },
+  "ndwi_2020_r1": {
+    1: "Alta humedad y buena retención hídrica",
+    2: "Moderada humedad",
+    3: "Humedad intermedia",
+    4: "Suelos ligeramente secos",
+    5: "Suelos secos o áreas urbanizadas"
+  },
+  "ndwi_2024_r1": {
+    1: "Alta humedad y buena retención hídrica",
+    2: "Moderada humedad",
+    3: "Humedad intermedia",
+    4: "Suelos ligeramente secos",
+    5: "Suelos secos o áreas urbanizadas"
+  },
+  "cambio_ndvi": {
+    1: "Fuerte pérdida de vegetación",
+    2: "Pérdida moderada",
+    3: "Sin cambio significativo",
+    4: "Ganancia moderada",
+    5: "Fuerte ganancia de vegetación"
+  },
+  "cambio_ndwi": {
+    1: "Fuerte pérdida de humedad",
+    2: "Pérdida moderada",
+    3: "Sin cambio",
+    4: "Aumento moderado de humedad",
+    5: "Fuerte aumento de humedad"
+  },
+  "susceptibilidad_ciudad_victoria": {
+    1: "Muy baja susceptibilidad",
+    2: "Baja susceptibilidad",
+    3: "Moderada susceptibilidad"
+  },
+  "susceptibilidad_deslizamientos": {
+    1: "Muy baja susceptibilidad",
+    2: "Baja susceptibilidad",
+    3: "Moderada susceptibilidad",
+    4: "Alta susceptibilidad",
+    5: "Muy alta susceptibilidad"
+  },
+  "pendiente_mc_r10": {
+    1: "0° – 5°",
+    2: ">5° – 15°",
+    3: ">15° – 30°",
+    4: ">30° – 45°",
+    5: ">45°"
+  }
+};
+
+// === Función para crear popup con título y descripción ===
+function crearPopup(layerName, dnValue) {
+  const titulo = titulosCapas[layerName] || layerName;
+  const leyenda = leyendas[layerName?.toLowerCase()];
+  const descripcion = leyenda ? leyenda[dnValue] : `DN: ${dnValue}`;
+  
+  return `<b>${titulo}</b><br>${descripcion}`;
+}
+
+const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Tiles © Esri'
+});
+
+const osmMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors'
+});
+
+const map = L.map('map', {
+  center: [-3.99, -79.2],
+  zoom: 12,
+  layers: [esriSat]
+});
+
+const baseMaps = {
+  "Satélite": esriSat,
+  "OpenStreetMap": osmMap
+};
+
+L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+
+const SUPABASE_URL = "https://xacvillcdpiyyhrjqrep.supabase.co";
+const SUPABASE_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhhY3ZpbGxjZHBpeXlocmpxcmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI0Mjc2MDEsImV4cCI6MjA2ODAwMzYwMX0.jxjhFGiAwB5mKPgUPjNDpjOsKDNF1QYMK1h3jdBCo3Q";
+
+const palettes = {
+  "ndvi_2016_r1": {
+    1: "#1c5904",
+    2: "#48c219",
+    3: "#b2f76f",
+    4: "#a7b535",
+    5: "#d9ce53",
+  },
+  "ndvi_2020_r1": {
+    1: "#1c5904",
+    2: "#48c219",
+    3: "#b2f76f",
+    4: "#a7b535",
+    5: "#d9ce53",
+  },
+  "ndvi_2024_r1": {
+    1: "#1c5904",
+    2: "#48c219",
+    3: "#b2f76f",
+    4: "#a7b535",
+    5: "#d9ce53",
+  },
+  "ndwi_2016_r1": {
+    1: "#1500a1",
+    2: "#2576ff",
+    3: "#4ec8e9",
+    4: "#e2db66",
+    5: "#ce8410",
+  },
+  "ndwi_2020_r1": {
+    1: "#1500a1",
+    2: "#2576ff",
+    3: "#4ec8e9",
+    4: "#e2db66",
+    5: "#ce8410",
+  },
+  "ndwi_2024_r1": {
+    1: "#1500a1",
+    2: "#2576ff",
+    3: "#4ec8e9",
+    4: "#e2db66",
+    5: "#ce8410",
+  },
+  "cambio_ndvi": {
+    1: "#7b0001",
+    2: "#fc8500",
+    3: "#f7ea5c",
+    4: "#94f26c",
+    5: "#015a00",
+  },
+  "cambio_ndwi": {
+    1: "#663300",
+    2: "#ffd700",
+    3: "#c0c0c0",
+    4: "#5ac8fa",
+    5: "#000084",
+  },
+  "pendiente_mc_r10": {
+    1: "#f6e891",
+    2: "#d0b865",
+    3: "#ffea4c",
+    4: "#d66a17",
+    5: "#c92311",
+  },
+  "susceptibilidad_ciudad_victoria": {
+    1: "#a7e1a5",
+    2: "#2bba69",
+    3: "#fcf58e",
+  },
+  "susceptibilidad_deslizamientos": {
+    1: "#b8f5c0",
+    2: "#92e787",
+    3: "#fef78d",
+    4: "#fcac4d",
+    5: "#e22e14",
+  },
+};
+
+const layers = {};
+
+function cargarCapa(nombre) {
+  const url = `${SUPABASE_URL}/rest/v1/${nombre}_geojson`;
+  fetch(url, {
+    headers: {
+      apikey: SUPABASE_API_KEY,
+      Authorization: `Bearer ${SUPABASE_API_KEY}`
+    }
+  })
+  .then(resp => resp.json())
+  .then(data => {
+    const features = data.map(row => ({
+      type: 'Feature',
+      geometry: row.geometry,
+      properties: { dn: parseFloat(row.dn) }
+    }));
+
+    const capa = L.geoJSON(features, {
+      style: f => {
+        const color = palettes[nombre][f.properties.dn] || "#ccc";
+        return {
+          fillColor: color,
+          color: color,
+          weight: 0.1,
+          opacity: 0.3,
+          fillOpacity: 0.8
+        };
+      },
+      onEachFeature: (f, l) => {
+        // Usar la función crearPopup para mostrar título y descripción
+        const popupContent = crearPopup(nombre, f.properties.dn);
+        l.bindPopup(popupContent);
+      }
+    });
+
+    capa.addTo(map);
+    layers[nombre] = capa;
+    document.getElementById("legend_" + nombre).style.display = "block";
+  })
+  .catch(error => {
+    console.error('Error cargando capa:', nombre, error);
+  });
+}
+
+document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+  const nombre = cb.dataset.layer;
+  cb.addEventListener("change", () => {
+    const leyenda = document.getElementById("legend_" + nombre);
+    if (cb.checked) {
+      leyenda.style.display = "block";
+      if (layers[nombre]) {
+        layers[nombre].addTo(map);
+      } else {
+        cargarCapa(nombre);
+      }
+    } else {
+      leyenda.style.display = "none";
+      if (layers[nombre]) map.removeLayer(layers[nombre]);
+    }
+  });
+});
+
+// Añadir efectos de carga suaves
+document.addEventListener('DOMContentLoaded', function() {
+  // Efecto de aparición gradual para elementos
+  const elementos = document.querySelectorAll('.layer-item, .legend-item');
+  elementos.forEach((el, index) => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(10px)';
+    setTimeout(() => {
+      el.style.transition = 'all 0.3s ease';
+      el.style.opacity = '1';
+      el.style.transform = 'translateY(0)';
+    }, index * 50);
+  });
+});
+</script>
+</body>
+</html>
